@@ -51,6 +51,7 @@ body {
 }
 
 .pill {
+  white-space: nowrap;
   border: none;
   border-radius: 999px;
   font-family: inherit;
@@ -70,7 +71,7 @@ body {
 .pill-primary:disabled { opacity: 0.5; }
 
 .pill-quiet {
-  background: #fff;
+  background: var(--cream-card);
   border: 1px solid rgba(61, 44, 36, 0.12);
   color: var(--brown-soft);
   font-size: 14px;

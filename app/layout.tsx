@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Gowun_Batang } from "next/font/google";
+import GlobalAlarm from "@/components/GlobalAlarm";
 import SWRegister from "@/components/SWRegister";
 import "./globals.css";
 
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <SWRegister />
+        <GlobalAlarm />
       </body>
     </html>
   );

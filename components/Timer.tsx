@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMMSS, progress, remainingMs } from "@/lib/time";
 import type { Pasta } from "@/lib/pastas";
@@ -10,6 +11,7 @@ type Phase = "idle" | "running" | "paused" | "done";
 
 type Saved = {
   slug: string;
+  nameKo?: string;
   mode: Mode;
   customMin: number;
   phase: Phase;
@@ -30,6 +32,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
   const [customMin, setCustomMin] = useState(pasta.normalMin);
   const [phase, setPhase] = useState<Phase>("idle");
   const [remaining, setRemaining] = useState(pasta.alDenteMin * 60_000);
+  const [otherTimer, setOtherTimer] = useState<{ slug: string; nameKo: string } | null>(null);
 
   const endAtRef = useRef(0);
   const durationRef = useRef(pasta.alDenteMin * 60_000);
@@ -55,7 +58,19 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const s: Saved = JSON.parse(raw);
-      if (s.slug !== pasta.slug || !s.phase) return;
+      if (!s.phase) return;
+      // 다른 파스타의 타이머가 진행 중이면 배너로 알린다 (조용한 덮어쓰기 방지)
+      if (s.slug !== pasta.slug) {
+        if (s.phase === "running" || s.phase === "paused") {
+          setOtherTimer({ slug: s.slug, nameKo: s.nameKo ?? "다른 파스타" });
+        }
+        return;
+      }
+      // 완료된 기록은 복원하지 않는다 — 표시 불일치 방지, 완전한 초기 상태로
+      if (s.phase === "done") {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
       setMode(s.mode);
       setCustomMin(s.customMin || pasta.normalMin);
       durationRef.current = s.durationMs;
@@ -76,8 +91,12 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     } catch { /* 손상된 저장값은 무시하고 초기 상태로 */ }
   }, [pasta.slug, pasta.normalMin]);
 
-  const ding = useCallback(() => {
+  const ding = useCallback(async () => {
     const ctx = audioRef.current;
+    // iOS Safari는 백그라운드 전환 시 AudioContext를 suspend — 반드시 resume 후 재생
+    if (ctx && ctx.state === "suspended") {
+      await ctx.resume().catch(() => {});
+    }
     if (ctx) {
       const beep = (at: number, freq: number) => {
         const osc = ctx.createOscillator();
@@ -167,8 +186,9 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     endAtRef.current = Date.now() + dur;
     setRemaining(dur);
     setPhase("running");
+    setOtherTimer(null);
     persist({
-      slug: pasta.slug, mode, customMin, phase: "running",
+      slug: pasta.slug, nameKo: pasta.nameKo, mode, customMin, phase: "running",
       endAt: endAtRef.current, durationMs: durationRef.current, pausedRemaining: 0,
     });
   };
@@ -211,11 +231,28 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
         position: "sticky", top: 12, zIndex: 10,
         padding: "20px 18px 18px", textAlign: "center",
         background: phase === "done" ? "rgba(111,122,99,0.12)" : undefined,
+        // DESIGN.md: 완료 화면에만 토마토 패턴 은은하게
+        backgroundImage:
+          phase === "done"
+            ? "radial-gradient(circle at 15% 20%, rgba(217,91,67,0.10) 0 18px, transparent 19px), radial-gradient(circle at 85% 30%, rgba(217,91,67,0.08) 0 14px, transparent 15px), radial-gradient(circle at 25% 80%, rgba(217,91,67,0.08) 0 16px, transparent 17px), radial-gradient(circle at 75% 85%, rgba(217,91,67,0.10) 0 12px, transparent 13px)"
+            : undefined,
       }}
     >
       {phase === "idle" && (
         <>
-          <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: -46, marginBottom: 2 }}>
+          {otherTimer && (
+            <Link
+              href={`/pasta/${otherTimer.slug}`}
+              style={{
+                display: "block", marginBottom: 10, padding: "11px 14px", borderRadius: 14,
+                background: "var(--pink-soft)", color: "var(--red-deep)",
+                fontSize: 13.5, fontWeight: 700, textDecoration: "none",
+              }}
+            >
+              🍅 {otherTimer.nameKo} 타이머가 아직 돌고 있어요 — 보러 가기
+            </Link>
+          )}
+          <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: otherTimer ? 0 : -46, marginBottom: 2 }}>
             <Image src="/characters/pomo.png" alt="" width={54} height={54} className="mascot-bob" style={{ borderRadius: "50%" }} />
             <Image src="/characters/oli.png" alt="" width={48} height={48} className="mascot-bob delay" style={{ marginTop: 7, borderRadius: "50%" }} />
           </div>
@@ -244,7 +281,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
             </div>
           )}
           <button className="pill pill-primary" onClick={start}>삶기 시작</button>
-          <p style={{ fontSize: 11.5, color: "var(--brown-soft)", marginTop: 10 }}>
+          <p style={{ fontSize: 12.5, color: "var(--brown-soft)", marginTop: 10 }}>
             물이 팔팔 끓고 면을 넣는 순간 눌러주세요
           </p>
         </>
@@ -255,7 +292,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
           <div style={{ position: "relative", width: SIZE, height: SIZE, margin: "4px auto 6px" }}>
             <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
               <circle cx={SIZE / 2} cy={SIZE / 2} r={R - 14} fill="var(--cream-card)" />
-              <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="var(--pink-soft)" strokeWidth={11} />
+              <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="var(--pink)" strokeWidth={11} />
               <circle
                 cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none"
                 stroke="var(--red)" strokeWidth={11} strokeLinecap="round"
@@ -295,8 +332,8 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
           <p className="serif" style={{ fontSize: 24, fontWeight: 700, color: "var(--sage)" }}>
             면이 다 삶아졌어요!
           </p>
-          <p style={{ fontSize: 13, color: "var(--brown-soft)", margin: "6px 0 14px" }}>
-            바로 건져서 팬으로 — 여열에도 계속 익어요.
+          <p style={{ fontSize: 15, color: "var(--brown-soft)", margin: "6px 0 14px" }}>
+            바로 건져서 팬으로 — 잔열에도 계속 익어요.
           </p>
           <button className="pill pill-primary" onClick={reset}>한 번 더 삶기</button>
         </>

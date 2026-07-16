@@ -37,7 +37,7 @@ export default function Home() {
             >
               <div style={{ flex: 1 }}>
                 <p className="serif" style={{ fontSize: 17, fontWeight: 700 }}>{p.nameKo}</p>
-                <p style={{ fontSize: 12.5, color: "var(--brown-soft)", marginTop: 2 }}>{p.shape}</p>
+                <p style={{ fontSize: 13, color: "var(--brown-soft)", marginTop: 2 }}>{p.shape}</p>
               </div>
               <span
                 style={{

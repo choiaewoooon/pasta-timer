@@ -225,6 +225,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
 
   return (
     <section
+      id="timer-section"
       className="card"
       aria-label="타이머"
       style={{

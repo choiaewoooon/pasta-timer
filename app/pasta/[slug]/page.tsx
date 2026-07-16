@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import SectionToggle from "@/components/SectionToggle";
 import Timer from "@/components/Timer";
 import { PASTAS, getPasta } from "@/lib/pastas";
 
@@ -15,7 +16,7 @@ export default async function PastaPage({ params }: { params: Promise<{ slug: st
   const r = pasta.recipe;
 
   return (
-    <main className="frame">
+    <main className="frame" style={{ paddingBottom: 100 }}>
       <nav style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 2px" }}>
         <Link
           href="/"
@@ -34,7 +35,9 @@ export default async function PastaPage({ params }: { params: Promise<{ slug: st
 
       <Timer pasta={pasta} />
 
-      <section className="card" aria-label="레시피" style={{ padding: "20px 18px" }}>
+      <SectionToggle />
+
+      <section id="recipe-section" className="card" aria-label="레시피" style={{ padding: "20px 18px", scrollMarginTop: 12 }}>
         <h2 className="serif" style={{ fontSize: 18, fontWeight: 700 }}>{r.title}</h2>
         <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--sage)", margin: "3px 0 6px" }}>
           이 파스타로 만들기 좋은 레시피

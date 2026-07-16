@@ -1,0 +1,109 @@
+/* 디자인 토큰 정본: DESIGN.md — 여기서 벗어나는 색·간격 금지 */
+:root {
+  --cream: #FAF3E0;
+  --cream-card: #FFFBF2;
+  --red: #D95B43;
+  --red-deep: #B84934;
+  --sage: #6F7A63;
+  --sage-light: #8A9478;
+  --pink: #EFA793;
+  --pink-soft: #F7D4C8;
+  --brown: #3D2C24;
+  --brown-soft: #8A7468;
+  --radius-card: 24px;
+  --shadow-card: 0 6px 20px rgba(61, 44, 36, 0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--cream);
+  color: var(--brown);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-suit), "SUIT Variable", "Pretendard Variable", -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.frame {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 16px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.serif { font-family: var(--font-gowun), "Gowun Batang", serif; }
+.digits {
+  font-family: var(--font-fraunces), "Fraunces", serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--cream-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.pill {
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pill:active { transform: scale(0.98); }
+
+.pill-primary {
+  background: var(--red);
+  color: #FFF6EC;
+  font-size: 17px;
+  min-height: 56px; /* 주방 UX: 터치 타깃 48px+ */
+  width: 100%;
+}
+.pill-primary:disabled { opacity: 0.5; }
+
+.pill-quiet {
+  background: #fff;
+  border: 1px solid rgba(61, 44, 36, 0.12);
+  color: var(--brown-soft);
+  font-size: 14px;
+  min-height: 48px;
+  padding: 0 18px;
+}
+.pill-quiet.on {
+  background: var(--pink-soft);
+  border-color: transparent;
+  color: var(--red-deep);
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 3px solid var(--pink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* 캐릭터 idle 바운스 — DESIGN.md: 표현 모션은 캐릭터에만 허용 */
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.mascot-bob { animation: bob 2.4s ease-in-out infinite; }
+.mascot-bob.delay { animation-delay: 1.2s; }
+
+@keyframes jump {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-18px) rotate(-4deg); }
+  55% { transform: translateY(0); }
+  70% { transform: translateY(-9px) rotate(3deg); }
+}
+.mascot-jump { animation: jump 0.9s ease-out infinite; }

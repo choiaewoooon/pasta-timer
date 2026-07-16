@@ -29,12 +29,19 @@ export default function Home() {
                 display: "flex",
                 alignItems: "center",
                 gap: 14,
-                padding: "16px 18px",
+                padding: "12px 18px 12px 12px",
                 textDecoration: "none",
                 color: "inherit",
                 minHeight: 72,
               }}
             >
+              <Image
+                src={`/pasta-icons/${p.slug}.png`}
+                alt=""
+                width={56}
+                height={56}
+                style={{ borderRadius: 16, flexShrink: 0 }}
+              />
               <div style={{ flex: 1 }}>
                 <p className="serif" style={{ fontSize: 17, fontWeight: 700 }}>{p.nameKo}</p>
                 <p style={{ fontSize: 13, color: "var(--brown-soft)", marginTop: 2 }}>{p.shape}</p>

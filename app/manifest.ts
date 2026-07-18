@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+// 정적 export(앱인토스 SSR 금지 요건)에서 manifest 라우트도 정적으로 생성되게 한다
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "뽀모올리 — 파스타 타이머",

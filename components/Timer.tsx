@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMMSS, progress, remainingMs } from "@/lib/time";
+import { IS_TOSS } from "@/lib/target";
+import { WATER_GUIDE } from "@/lib/pastas";
 import type { Pasta } from "@/lib/pastas";
 
 type Mode = "aldente" | "normal" | "custom";
@@ -22,6 +24,13 @@ type Saved = {
 
 const STORAGE_KEY = "pomooli-timer";
 
+// 초보가 '알덴테'를 몰라 심이 남은 면을 덜 익었다고 오해하는 걸 막는다
+const MODE_HINT: Record<string, string> = {
+  aldente: "가운데 심이 살짝 남는 정도. 팬에서 소스와 볶으면 딱 맞아요.",
+  normal: "소스 없이 그대로 먹거나, 아이와 함께라면 이쪽이 좋아요.",
+  custom: "봉지 뒷면에 적힌 시간을 그대로 넣어주세요.",
+};
+
 // 링 지오메트리 — DESIGN.md: 삶는 중 = C안의 진행 링, 뽀모가 링 위를 이동
 const SIZE = 230;
 const R = 97;
@@ -31,18 +40,27 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
   const [mode, setMode] = useState<Mode>("aldente");
   const [customMin, setCustomMin] = useState(pasta.normalMin);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [remaining, setRemaining] = useState(pasta.alDenteMin * 60_000);
+  const [remaining, setRemaining] = useState(
+    (pasta.variants ? pasta.variants[Math.floor(pasta.variants.length / 2)].alDenteMin : pasta.alDenteMin) * 60_000,
+  );
   const [otherTimer, setOtherTimer] = useState<{ slug: string; nameKo: string } | null>(null);
+  // 굵기 변형이 있는 면(스파게티)은 어떤 굵기를 골랐는지 기억한다. 기본은 가운데(가장 흔한 굵기)
+  const [variantIdx, setVariantIdx] = useState(
+    pasta.variants ? Math.floor(pasta.variants.length / 2) : 0,
+  );
+  const preAlertRef = useRef(false);
 
   const endAtRef = useRef(0);
   const durationRef = useRef(pasta.alDenteMin * 60_000);
   const audioRef = useRef<AudioContext | null>(null);
   const wakeLockRef = useRef<{ release(): Promise<void> } | null>(null);
 
+  // 굵기 변형이 있으면 그 값이 기준. 없으면 파스타 기본값.
+  const times = pasta.variants?.[variantIdx] ?? pasta;
   const durationFor = useCallback(
     (m: Mode, cMin: number) =>
-      (m === "aldente" ? pasta.alDenteMin : m === "normal" ? pasta.normalMin : cMin) * 60_000,
-    [pasta.alDenteMin, pasta.normalMin],
+      (m === "aldente" ? times.alDenteMin : m === "normal" ? times.normalMin : cMin) * 60_000,
+    [times.alDenteMin, times.normalMin],
   );
 
   const persist = useCallback((s: Partial<Saved>) => {
@@ -91,6 +109,24 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     } catch { /* 손상된 저장값은 무시하고 초기 상태로 */ }
   }, [pasta.slug, pasta.normalMin]);
 
+  // 예비 신호음 — 완료음보다 짧고 낮게 (놀라지 않게)
+  const preBeep = useCallback(() => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const t = ctx.currentTime;
+    osc.type = "sine";
+    osc.frequency.value = 660;
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.35);
+    if (navigator.vibrate) navigator.vibrate(180);
+  }, []);
+
   const ding = useCallback(async () => {
     const ctx = audioRef.current;
     // iOS Safari는 백그라운드 전환 시 AudioContext를 suspend — 반드시 resume 후 재생
@@ -128,6 +164,11 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     const id = setInterval(() => {
       const rem = remainingMs(endAtRef.current, Date.now());
       setRemaining(rem);
+      // 1분 전 예비 신호 — 레시피 대부분이 면수를 쓰는데, 알람이 울린 뒤엔 이미 손이 바쁘다
+      if (rem > 0 && rem <= 60_000 && !preAlertRef.current) {
+        preAlertRef.current = true;
+        preBeep();
+      }
       if (rem <= 0) {
         setPhase("done");
         persist({ phase: "done" });
@@ -187,6 +228,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     setRemaining(dur);
     setPhase("running");
     setOtherTimer(null);
+    if (phase !== "paused") preAlertRef.current = false;
     persist({
       slug: pasta.slug, nameKo: pasta.nameKo, mode, customMin, phase: "running",
       endAt: endAtRef.current, durationMs: durationRef.current, pausedRemaining: 0,
@@ -202,8 +244,15 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
 
   const reset = () => {
     setPhase("idle");
+    preAlertRef.current = false;
     setRemaining(durationFor(mode, customMin));
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
+  };
+
+  const pickVariant = (i: number) => {
+    setVariantIdx(i);
+    const v = pasta.variants![i];
+    setRemaining((mode === "aldente" ? v.alDenteMin : mode === "normal" ? v.normalMin : customMin) * 60_000);
   };
 
   const pickMode = (m: Mode) => {
@@ -257,23 +306,51 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
             <Image src="/characters/pomo.png" alt="" width={54} height={54} className="mascot-bob" style={{ borderRadius: "50%" }} />
             <Image src="/characters/oli.png" alt="" width={48} height={48} className="mascot-bob delay" style={{ marginTop: 7, borderRadius: "50%" }} />
           </div>
+          {IS_TOSS && (
+            <h1 className="serif" style={{ fontSize: 20, fontWeight: 700, marginBottom: 2 }}>
+              {pasta.nameKo}
+            </h1>
+          )}
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--brown-soft)", letterSpacing: "0.1em" }}>
             {mode === "aldente" ? "알덴테까지" : mode === "normal" ? "푹 익을 때까지" : "직접 입력한 시간"}
           </p>
           <p className="digits" style={{ fontSize: 64, fontWeight: 500, lineHeight: 1.15 }}>
             {formatMMSS(remaining)}
           </p>
-          <div style={{ display: "flex", gap: 6, justifyContent: "center", margin: "10px 0 14px", flexWrap: "wrap" }}>
+          {pasta.variants && (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: "var(--brown-soft)", marginBottom: 6 }}>
+                봉지 앞면의 굵기를 골라주세요
+              </p>
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                {pasta.variants.map((v, i) => (
+                  <button
+                    key={v.label}
+                    className={`pill pill-quiet${variantIdx === i ? " on" : ""}`}
+                    aria-pressed={variantIdx === i}
+                    onClick={() => pickVariant(i)}
+                    style={{ fontSize: 13, padding: "0 14px" }}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", margin: "10px 0 6px", flexWrap: "wrap" }}>
             <button className={`pill pill-quiet${mode === "aldente" ? " on" : ""}`} aria-pressed={mode === "aldente"} onClick={() => pickMode("aldente")}>
-              알덴테 {pasta.alDenteMin}분
+              알덴테 {times.alDenteMin}분
             </button>
             <button className={`pill pill-quiet${mode === "normal" ? " on" : ""}`} aria-pressed={mode === "normal"} onClick={() => pickMode("normal")}>
-              기본 {pasta.normalMin}분
+              기본 {times.normalMin}분
             </button>
             <button className={`pill pill-quiet${mode === "custom" ? " on" : ""}`} aria-pressed={mode === "custom"} onClick={() => pickMode("custom")}>
               직접 입력
             </button>
           </div>
+          <p style={{ fontSize: 12.5, color: "var(--brown-soft)", margin: "0 auto 14px", maxWidth: 300, lineHeight: 1.5 }}>
+            {MODE_HINT[mode]}
+          </p>
           {mode === "custom" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center", marginBottom: 14 }}>
               <button className="pill pill-quiet" aria-label="1분 줄이기" onClick={() => bumpCustom(-1)} style={{ width: 48 }}>−</button>
@@ -281,6 +358,20 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
               <button className="pill pill-quiet" aria-label="1분 늘리기" onClick={() => bumpCustom(1)} style={{ width: 48 }}>＋</button>
             </div>
           )}
+          <div
+            style={{
+              display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left",
+              padding: "12px 14px", marginBottom: 14, borderRadius: 14,
+              background: "rgba(94, 104, 83, 0.10)",
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1.2 }}>💧</span>
+            <p style={{ fontSize: 13.5, color: "var(--brown)", lineHeight: 1.55 }}>
+              <b>먼저 물부터.</b> 1인분({WATER_GUIDE.perServing.pastaG}g)에 물{" "}
+              {WATER_GUIDE.perServing.waterL}L, 소금 {WATER_GUIDE.perServing.saltTsp}작은술.{" "}
+              <span style={{ color: "var(--brown-soft)" }}>{WATER_GUIDE.note}</span>
+            </p>
+          </div>
           <button className="pill pill-primary" onClick={start}>삶기 시작</button>
           <p style={{ fontSize: 12.5, color: "var(--brown-soft)", marginTop: 10 }}>
             물이 팔팔 끓고 면을 넣는 순간 눌러주세요
@@ -315,7 +406,11 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
             />
           </div>
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--brown-soft)", marginBottom: 12 }}>
-            {phase === "paused" ? "잠시 멈췄어요" : "뽀모가 지켜보는 중 — 아래에서 소스를 준비해요"}
+            {phase === "paused"
+              ? "잠시 멈췄어요"
+              : remaining <= 60_000
+                ? "곧 완성! 면수 한 컵 미리 떠두세요"
+                : "뽀모가 지켜보는 중 — 아래에서 소스를 준비해요"}
           </p>
           <div style={{ display: "flex", gap: 8 }}>
             {phase === "running" ? (

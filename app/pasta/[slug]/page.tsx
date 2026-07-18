@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SectionToggle from "@/components/SectionToggle";
 import Timer from "@/components/Timer";
+import { IS_TOSS } from "@/lib/target";
 import { PASTAS, getPasta } from "@/lib/pastas";
 
 export function generateStaticParams() {
@@ -17,6 +18,9 @@ export default async function PastaPage({ params }: { params: Promise<{ slug: st
 
   return (
     <main className="frame" style={{ paddingBottom: 100 }}>
+      {/* 앱인토스는 토스 네이티브 내비게이션 바가 상단에 얹히므로 자체 헤더를 숨긴다.
+          뒤로가기는 토스 바에 위임하고, 파스타 이름은 타이머 카드가 이어받는다. */}
+      {!IS_TOSS && (
       <nav style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 2px" }}>
         <Link
           href="/"
@@ -32,6 +36,7 @@ export default async function PastaPage({ params }: { params: Promise<{ slug: st
         <h1 className="serif" style={{ fontSize: 21, fontWeight: 700 }}>{pasta.nameKo}</h1>
         <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--brown-soft)" }}>{pasta.nameIt}</span>
       </nav>
+      )}
 
       <Timer pasta={pasta} />
 

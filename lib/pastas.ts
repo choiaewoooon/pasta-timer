@@ -14,6 +14,13 @@ export type Recipe = {
   tip?: string;
 };
 
+/** 같은 면인데 굵기(mm)에 따라 삶는 시간이 갈리는 경우 — 스파게티가 대표적 */
+export type Variant = {
+  label: string;      // 봉지에 적힌 표기 (예: "1.7mm")
+  alDenteMin: number;
+  normalMin: number;
+};
+
 export type Pasta = {
   slug: string;
   nameKo: string;
@@ -21,8 +28,24 @@ export type Pasta = {
   shape: string; // 한 줄 설명 (모양/특징)
   alDenteMin: number;
   normalMin: number;
+  /** 있으면 상세 화면에 굵기 선택 칩이 뜬다. 첫 항목이 기본값 */
+  variants?: Variant[];
   recipe: Recipe;
 };
+
+/**
+ * 삶는 물 기준값. 이탈리아 표준은 면 100g당 물 1L + 소금 10g인데,
+ * 한국 입맛에는 짜게 느껴질 수 있어 소금은 절반(5g ≈ 1작은술)에서 시작하도록 안내한다.
+ * 물이 적으면 면끼리 붙고 전분이 뭉쳐 떡지므로 물 양은 줄이지 않는 게 중요하다.
+ */
+export const WATER_GUIDE = {
+  perServing: {
+    pastaG: 100,
+    waterL: 1,
+    saltTsp: 1,
+  },
+  note: "물이 적으면 면이 서로 붙어요. 넉넉하게 잡는 게 실패가 없어요.",
+} as const;
 
 export const PASTAS: Pasta[] = [
   {
@@ -32,6 +55,12 @@ export const PASTAS: Pasta[] = [
     shape: "가장 기본이 되는 길고 둥근 면",
     alDenteMin: 8,
     normalMin: 10,
+    // 봉지 앞면에 굵기가 mm로 적혀 있다. 같은 스파게티도 최대 5분 차이 난다.
+    variants: [
+      { label: "1.4mm", alDenteMin: 6, normalMin: 7 },
+      { label: "1.7mm", alDenteMin: 8, normalMin: 10 },
+      { label: "1.9mm", alDenteMin: 10, normalMin: 12 },
+    ],
     recipe: {
       title: "알리오 올리오",
       intro: "면이 삶아지는 8분이면 소스까지 딱 맞게 끝나요.",

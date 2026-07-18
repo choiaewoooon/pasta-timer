@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IS_TOSS } from "@/lib/target";
 
 // 하단 플로팅 토글 바 — 타이머/레시피 구간 이동. 스크롤과 무관하게 화면 하단에 고정.
 // 레퍼런스: Wabi의 플로팅 pill 바텀 바 (design-references/app/wabi-meal-planner)
@@ -48,7 +49,8 @@ export default function SectionToggle() {
     <nav
       aria-label="구간 이동"
       style={{
-        position: "fixed",
+        // 앱인토스: 화면 하단 플로팅은 토스 탭바로 오인될 수 있어 상단 sticky로 내린다
+        position: IS_TOSS ? "sticky" : "fixed",
         left: "50%",
         transform: "translateX(-50%)",
         bottom: "calc(14px + env(safe-area-inset-bottom))",

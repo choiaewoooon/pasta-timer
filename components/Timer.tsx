@@ -169,7 +169,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
   useEffect(() => {
     if (phase === "running") document.title = `${formatMMSS(remaining)} · ${pasta.nameKo} — 뽀모올리`;
     else if (phase === "done") document.title = `완성! ${pasta.nameKo} — 뽀모올리`;
-    else document.title = "뽀모올리 — 파스타 타이머";
+    else document.title = "파스타 타이머(뽀모올리)";
   }, [phase, remaining, pasta.nameKo]);
 
   const start = () => {
@@ -264,13 +264,13 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
             {formatMMSS(remaining)}
           </p>
           <div style={{ display: "flex", gap: 6, justifyContent: "center", margin: "10px 0 14px", flexWrap: "wrap" }}>
-            <button className={`pill pill-quiet${mode === "aldente" ? " on" : ""}`} onClick={() => pickMode("aldente")}>
+            <button className={`pill pill-quiet${mode === "aldente" ? " on" : ""}`} aria-pressed={mode === "aldente"} onClick={() => pickMode("aldente")}>
               알덴테 {pasta.alDenteMin}분
             </button>
-            <button className={`pill pill-quiet${mode === "normal" ? " on" : ""}`} onClick={() => pickMode("normal")}>
+            <button className={`pill pill-quiet${mode === "normal" ? " on" : ""}`} aria-pressed={mode === "normal"} onClick={() => pickMode("normal")}>
               기본 {pasta.normalMin}분
             </button>
-            <button className={`pill pill-quiet${mode === "custom" ? " on" : ""}`} onClick={() => pickMode("custom")}>
+            <button className={`pill pill-quiet${mode === "custom" ? " on" : ""}`} aria-pressed={mode === "custom"} onClick={() => pickMode("custom")}>
               직접 입력
             </button>
           </div>
@@ -302,9 +302,13 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
                 style={{ transition: "stroke-dashoffset 0.25s linear" }}
               />
             </svg>
-            <div className="digits" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 46, fontWeight: 500 }}>
+            <div className="digits" aria-hidden="true" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 46, fontWeight: 500 }}>
               {formatMMSS(remaining)}
             </div>
+            {/* 스크린리더: 초 단위로 낭독하면 시끄러우므로 분 단위로만 알린다 */}
+            <p className="sr-only" role="status" aria-live="polite">
+              {Math.ceil(remaining / 60_000)}분 남았어요
+            </p>
             <Image
               src="/characters/pomo.png" alt="" width={44} height={44}
               style={{ position: "absolute", left: px - 22, top: py - 22, transition: "left 0.25s linear, top 0.25s linear", borderRadius: "50%", boxShadow: "0 2px 8px rgba(61,44,36,0.18)" }}
@@ -330,7 +334,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
             <Image src="/characters/pomo.png" alt="" width={64} height={64} className="mascot-jump" style={{ borderRadius: "50%" }} />
             <Image src="/characters/oli.png" alt="" width={56} height={56} className="mascot-jump" style={{ marginTop: 8, animationDelay: "0.15s", borderRadius: "50%" }} />
           </div>
-          <p className="serif" style={{ fontSize: 24, fontWeight: 700, color: "var(--sage)" }}>
+          <p className="serif" role="alert" aria-live="assertive" style={{ fontSize: 24, fontWeight: 700, color: "var(--sage)" }}>
             면이 다 삶아졌어요!
           </p>
           <p style={{ fontSize: 15, color: "var(--brown-soft)", margin: "6px 0 14px" }}>

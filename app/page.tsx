@@ -10,10 +10,15 @@ export default function Home() {
           <span style={{ color: "var(--red)" }}>뽀모</span>
           <span style={{ color: "var(--sage)" }}>올리</span>
         </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 14 }}>
-          <Image src="/characters/pomo.png" alt="토마토 캐릭터 뽀모" width={72} height={72} className="mascot-bob" priority style={{ borderRadius: "50%" }} />
-          <Image src="/characters/oli.png" alt="올리브 캐릭터 올리" width={64} height={64} className="mascot-bob delay" style={{ marginTop: 8, borderRadius: "50%" }} priority />
-        </div>
+        <Image
+          src="/characters/pomo-cooking.png"
+          alt="뽀모가 냄비에 스파게티를 젓고 있는 그림"
+          width={200}
+          height={200}
+          priority
+          className="mascot-bob"
+          style={{ display: "block", margin: "0 auto 10px", borderRadius: 24 }}
+        />
         <h1 className="serif" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.4 }}>
           오늘은 어떤 파스타를<br />삶을까요?
         </h1>

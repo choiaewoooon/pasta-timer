@@ -4,12 +4,12 @@
   --cream-card: #FFFBF2;
   --red: #D95B43;
   --red-deep: #B84934;
-  --sage: #6F7A63;
+  --sage: #5E6853;        /* WCAG AA: 카드 위 5.68:1 (구 #6F7A63는 4.38 미달) */
   --sage-light: #8A9478;
   --pink: #EFA793;
   --pink-soft: #F7D4C8;
   --brown: #3D2C24;
-  --brown-soft: #8A7468;
+  --brown-soft: #7A6255;  /* WCAG AA: 카드 위 5.49:1 (구 #8A7468는 4.25 미달) */
   --radius-card: 24px;
   --shadow-card: 0 6px 20px rgba(61, 44, 36, 0.08);
 }
@@ -17,13 +17,14 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
+  touch-action: manipulation; /* 앱인토스: 제스처 확대 비활성화 */
   background: var(--cream);
   color: var(--brown);
   -webkit-font-smoothing: antialiased;
 }
 
 body {
-  font-family: var(--font-suit), "SUIT Variable", "Pretendard Variable", -apple-system, sans-serif;
+  font-family: "SUIT Variable", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
   font-size: 15px;
   line-height: 1.65;
 }
@@ -62,7 +63,7 @@ body {
 .pill:active { transform: scale(0.98); }
 
 .pill-primary {
-  background: var(--red);
+  background: var(--red-deep); /* WCAG AA 4.86:1 — --red(#D95B43)는 3.55로 미달 */
   color: #FFF6EC;
   font-size: 17px;
   min-height: 56px; /* 주방 UX: 터치 타깃 48px+ */
@@ -108,3 +109,14 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   70% { transform: translateY(-9px) rotate(3deg); }
 }
 .mascot-jump { animation: jump 0.9s ease-out infinite; }
+
+/* 스크린리더 전용 — 시각적으로 숨기되 낭독은 되게 */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

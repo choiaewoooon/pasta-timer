@@ -24,13 +24,19 @@ type Saved = {
 
 const STORAGE_KEY = "pomooli-timer";
 
+// 주방은 시끄럽다 — 물 끓는 소리, 후드, 환풍기. 신호음 설계의 제약이 여기서 나온다.
+// 1) 파형: sine은 배음이 없어 소음에 가장 잘 묻힌다. triangle은 배음이 있어 뚫고 나온다.
+// 2) 음역: 사람 귀는 2~4kHz에서 가장 예민하다. 같은 진폭이어도 저음은 훨씬 작게 들린다.
+// 3) 볼륨: 위 둘을 먼저 잡고 나서 올린다. gain만 키우면 클리핑으로 찢어지는 소리가 난다.
+const PRE_GAIN = 0.55;  // 완료음보다는 낮게 유지 — '진짜 끝'과 구분돼야 한다
+const DONE_GAIN = 0.85;
+
 // 완료 전 예비 신호 3단계 (내림차순 필수 — tick에서 위에서부터 훑는다).
 // 음이 높아지고 횟수가 늘수록 급하다는 뜻. 소리만 듣고도 남은 시간이 구분된다.
-// 완료음(880/1175Hz·6회)보다는 항상 약하게 유지해 '진짜 끝'과 헷갈리지 않게 한다.
 const PRE_ALERTS = [
-  { at: 60_000, freq: 660, count: 1, gap: 0,    vibe: [180] },           // 면수 떠두세요
-  { at: 30_000, freq: 780, count: 2, gap: 0.28, vibe: [140, 90, 140] },  // 건질 준비
-  { at: 10_000, freq: 880, count: 3, gap: 0.22, vibe: [110, 70, 110, 70, 110] }, // 곧 건지세요
+  { at: 60_000, freq: 1320, count: 1, gap: 0,    vibe: [220] },          // 면수 떠두세요
+  { at: 30_000, freq: 1760, count: 2, gap: 0.26, vibe: [180, 90, 180] }, // 건질 준비
+  { at: 10_000, freq: 2200, count: 3, gap: 0.20, vibe: [150, 70, 150, 70, 150] }, // 곧 건지세요
 ] as const;
 
 // 초보가 '알덴테'를 몰라 심이 남은 면을 덜 익었다고 오해하는 걸 막는다
@@ -130,10 +136,10 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
       const at = t0 + i * gap;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
+      osc.type = "triangle"; // 배음이 있어 주방 소음을 뚫는다 (sine은 묻힌다)
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.001, at);
-      gain.gain.exponentialRampToValueAtTime(0.22, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(PRE_GAIN, at + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, at + 0.3);
       osc.connect(gain).connect(ctx.destination);
       osc.start(at);
@@ -153,17 +159,18 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
       const beep = (at: number, freq: number) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = "sine";
+        osc.type = "triangle"; // 예비음과 동일 — 주방 소음을 뚫기 위해
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.001, at);
-        gain.gain.exponentialRampToValueAtTime(0.4, at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(DONE_GAIN, at + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, at + 0.35);
         osc.connect(gain).connect(ctx.destination);
         osc.start(at);
         osc.stop(at + 0.4);
       };
       const t = ctx.currentTime;
-      [0, 0.45, 0.9, 1.8, 2.25, 2.7].forEach((d, i) => beep(t + d, i % 3 === 2 ? 1175 : 880));
+      // 예비음 최고치(2200Hz)보다 위로 올려 '끝'이 확실히 구분되게 한다
+      [0, 0.45, 0.9, 1.8, 2.25, 2.7].forEach((d, i) => beep(t + d, i % 3 === 2 ? 3136 : 2637));
     }
     if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 500]);
     if ("Notification" in window && Notification.permission === "granted") {

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import SectionToggle from "@/components/SectionToggle";
@@ -43,7 +44,11 @@ export default async function PastaPage({ params }: { params: Promise<{ slug: st
       <SectionToggle />
 
       <section id="recipe-section" className="card" aria-label="레시피" style={{ padding: "20px 18px", scrollMarginTop: 12 }}>
-        <h2 className="serif" style={{ fontSize: 18, fontWeight: 700 }}>{r.title}</h2>
+        {/* DESIGN.md: 세이지 = 레시피 악센트. 의인화 없는 올리브 가지로 구간을 표시한다 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <Image src="/ui-icons/olive-branch.png" alt="" width={28} height={28} style={{ flexShrink: 0 }} />
+          <h2 className="serif" style={{ fontSize: 18, fontWeight: 700 }}>{r.title}</h2>
+        </div>
         <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--sage)", margin: "3px 0 6px" }}>
           이 파스타로 만들기 좋은 레시피
         </p>
@@ -88,11 +93,13 @@ export default async function PastaPage({ params }: { params: Promise<{ slug: st
         {r.tip && (
           <p
             style={{
+              display: "flex", alignItems: "flex-start", gap: 9,
               marginTop: 18, padding: "12px 14px", borderRadius: 14,
               background: "var(--pink-soft)", color: "var(--red-deep)", fontSize: 13, fontWeight: 600,
             }}
           >
-            🍅 뽀모의 팁 — {r.tip}
+            <Image src="/ui-icons/tomato-plain.png" alt="" width={26} height={26} style={{ flexShrink: 0, marginTop: -1 }} />
+            <span>뽀모의 팁 — {r.tip}</span>
           </p>
         )}
       </section>

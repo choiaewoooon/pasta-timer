@@ -271,6 +271,15 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
   const px = SIZE / 2 + R * Math.cos((angle * Math.PI) / 180);
   const py = SIZE / 2 + R * Math.sin((angle * Math.PI) / 180);
   const showRing = phase === "running" || phase === "paused";
+  const almostDone = remaining <= 60_000;
+  // DESIGN.md: 성격 표현은 캐릭터에게 맡긴다 — 감정이 바뀌는 순간마다 포즈를 바꾼다.
+  // 링 위 마커는 한 화면에 한 번만 등장하므로 '캐릭터 1회' 규칙을 지킨다.
+  const ringPose =
+    phase === "paused"
+      ? "/characters/pomo-sleepy.png"
+      : almostDone
+        ? "/characters/pomo-excited.png"
+        : "/characters/pomo.png";
 
   return (
     <section
@@ -294,12 +303,14 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
             <Link
               href={`/pasta/${otherTimer.slug}`}
               style={{
-                display: "block", marginBottom: 10, padding: "11px 14px", borderRadius: 14,
+                display: "flex", alignItems: "center", gap: 8,
+                marginBottom: 10, padding: "11px 14px", borderRadius: 14,
                 background: "var(--pink-soft)", color: "var(--red-deep)",
-                fontSize: 13.5, fontWeight: 700, textDecoration: "none",
+                fontSize: 13.5, fontWeight: 700, textDecoration: "none", textAlign: "left",
               }}
             >
-              🍅 {otherTimer.nameKo} 타이머가 아직 돌고 있어요 — 보러 가기
+              <Image src="/ui-icons/tomato-plain.png" alt="" width={24} height={24} style={{ flexShrink: 0 }} />
+              <span>{otherTimer.nameKo} 타이머가 아직 돌고 있어요 — 보러 가기</span>
             </Link>
           )}
           <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: otherTimer ? 0 : -46, marginBottom: 2 }}>
@@ -365,7 +376,8 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
               background: "rgba(94, 104, 83, 0.10)",
             }}
           >
-            <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1.2 }}>💧</span>
+            {/* 시스템 이모지 대신 크레파스 오브젝트 — DESIGN.md 화풍 통일 (의인화 없음) */}
+            <Image src="/ui-icons/water-salt.png" alt="" width={28} height={28} style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 13.5, color: "var(--brown)", lineHeight: 1.55 }}>
               <b>먼저 물부터.</b> 1인분({WATER_GUIDE.perServing.pastaG}g)에 물{" "}
               {WATER_GUIDE.perServing.waterL}L, 소금 {WATER_GUIDE.perServing.saltTsp}작은술.{" "}
@@ -401,14 +413,14 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
               {Math.ceil(remaining / 60_000)}분 남았어요
             </p>
             <Image
-              src="/characters/pomo.png" alt="" width={44} height={44}
+              src={ringPose} alt="" width={44} height={44}
               style={{ position: "absolute", left: px - 22, top: py - 22, transition: "left 0.25s linear, top 0.25s linear", borderRadius: "50%", boxShadow: "0 2px 8px rgba(61,44,36,0.18)" }}
             />
           </div>
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--brown-soft)", marginBottom: 12 }}>
             {phase === "paused"
               ? "잠시 멈췄어요"
-              : remaining <= 60_000
+              : almostDone
                 ? "곧 완성! 면수 한 컵 미리 떠두세요"
                 : "뽀모가 지켜보는 중 — 아래에서 소스를 준비해요"}
           </p>

@@ -24,6 +24,15 @@ type Saved = {
 
 const STORAGE_KEY = "pomooli-timer";
 
+// 완료 전 예비 신호 3단계 (내림차순 필수 — tick에서 위에서부터 훑는다).
+// 음이 높아지고 횟수가 늘수록 급하다는 뜻. 소리만 듣고도 남은 시간이 구분된다.
+// 완료음(880/1175Hz·6회)보다는 항상 약하게 유지해 '진짜 끝'과 헷갈리지 않게 한다.
+const PRE_ALERTS = [
+  { at: 60_000, freq: 660, count: 1, gap: 0,    vibe: [180] },           // 면수 떠두세요
+  { at: 30_000, freq: 780, count: 2, gap: 0.28, vibe: [140, 90, 140] },  // 건질 준비
+  { at: 10_000, freq: 880, count: 3, gap: 0.22, vibe: [110, 70, 110, 70, 110] }, // 곧 건지세요
+] as const;
+
 // 초보가 '알덴테'를 몰라 심이 남은 면을 덜 익었다고 오해하는 걸 막는다
 const MODE_HINT: Record<string, string> = {
   aldente: "가운데 심이 살짝 남는 정도. 팬에서 소스와 볶으면 딱 맞아요.",
@@ -48,7 +57,8 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
   const [variantIdx, setVariantIdx] = useState(
     pasta.variants ? Math.floor(pasta.variants.length / 2) : 0,
   );
-  const preAlertRef = useRef(false);
+  // 이미 울린 예비 신호의 임계값들. 되감기·재시작 시 초기화한다.
+  const firedAlertsRef = useRef<Set<number>>(new Set());
 
   const endAtRef = useRef(0);
   const durationRef = useRef(pasta.alDenteMin * 60_000);
@@ -109,22 +119,28 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     } catch { /* 손상된 저장값은 무시하고 초기 상태로 */ }
   }, [pasta.slug, pasta.normalMin]);
 
-  // 예비 신호음 — 완료음보다 짧고 낮게 (놀라지 않게)
-  const preBeep = useCallback(() => {
+  // 예비 신호음 — 완료음보다 짧고 낮게 (놀라지 않게).
+  // 남은 시간이 줄수록 음이 높아지고 횟수가 늘어 '급해지는' 느낌을 준다.
+  // 주방에서는 물 끓는 소리에 묻히기 쉬워서, 말보다 짧은 신호음이 잘 들린다.
+  const preBeep = useCallback((freq: number, count: number, gap: number, vibe: readonly number[]) => {
     const ctx = audioRef.current;
     if (!ctx) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const t = ctx.currentTime;
-    osc.type = "sine";
-    osc.frequency.value = 660;
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.35);
-    if (navigator.vibrate) navigator.vibrate(180);
+    const t0 = ctx.currentTime;
+    for (let i = 0; i < count; i++) {
+      const at = t0 + i * gap;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.001, at);
+      gain.gain.exponentialRampToValueAtTime(0.22, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.3);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(at);
+      osc.stop(at + 0.35);
+    }
+    // readonly 상수를 그대로 넘길 수 없어 복사본을 만든다
+    if (navigator.vibrate) navigator.vibrate([...vibe]);
   }, []);
 
   const ding = useCallback(async () => {
@@ -164,10 +180,17 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     const id = setInterval(() => {
       const rem = remainingMs(endAtRef.current, Date.now());
       setRemaining(rem);
-      // 1분 전 예비 신호 — 레시피 대부분이 면수를 쓰는데, 알람이 울린 뒤엔 이미 손이 바쁘다
-      if (rem > 0 && rem <= 60_000 && !preAlertRef.current) {
-        preAlertRef.current = true;
-        preBeep();
+      // 예비 신호 3단계. 1분 전은 면수를 미리 떠두라는 신호(레시피 대부분이 면수를 쓰는데,
+      // 완료 알람이 울린 뒤엔 이미 손이 바쁘다), 30초·10초는 건질 준비 신호다.
+      // 임계값을 내림차순으로 훑어 '가장 급한 것 하나만' 울린다 — 백그라운드에 다녀와
+      // 여러 임계값을 한 번에 지나쳤을 때 신호음이 겹쳐 울리는 걸 막는다.
+      for (const a of PRE_ALERTS) {
+        if (rem > 0 && rem <= a.at && !firedAlertsRef.current.has(a.at)) {
+          // 지나쳐버린 상위 임계값은 울리지 않고 '울림 처리'만 해둔다
+          PRE_ALERTS.forEach((x) => { if (x.at >= a.at) firedAlertsRef.current.add(x.at); });
+          preBeep(a.freq, a.count, a.gap, a.vibe);
+          break;
+        }
       }
       if (rem <= 0) {
         setPhase("done");
@@ -228,7 +251,9 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
     setRemaining(dur);
     setPhase("running");
     setOtherTimer(null);
-    if (phase !== "paused") preAlertRef.current = false;
+    // 일시정지에서 '계속'은 이어하기라 이미 울린 신호를 다시 울리지 않는다.
+    // 처음부터 시작하는 경우에만 초기화한다.
+    if (phase !== "paused") firedAlertsRef.current.clear();
     persist({
       slug: pasta.slug, nameKo: pasta.nameKo, mode, customMin, phase: "running",
       endAt: endAtRef.current, durationMs: durationRef.current, pausedRemaining: 0,
@@ -244,7 +269,7 @@ export default function Timer({ pasta }: { pasta: Pasta }) {
 
   const reset = () => {
     setPhase("idle");
-    preAlertRef.current = false;
+    firedAlertsRef.current.clear();
     setRemaining(durationFor(mode, customMin));
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
   };

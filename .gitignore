@@ -9,3 +9,8 @@ out/
 
 # 콘솔 업로드용 사본 — 정본은 docs/store-assets/ (중복 바이너리 커밋 방지)
 토스 업로드/
+
+.granite
+
+# ait 빌드 산출물
+*.ait

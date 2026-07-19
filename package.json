@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "bun test"
+    "test": "bun test",
+    "build:toss": "ait build",
+    "build:toss:web": "NEXT_PUBLIC_TARGET=toss next build",
+    "deploy:toss": "ait deploy"
   },
   "dependencies": {
     "@apps-in-toss/web-framework": "^2.10.6",
